@@ -6,6 +6,7 @@ import cv2
 from PIL import Image
 import pytesseract
 import re
+import pandas as pd
 
 # Set the path to the Tesseract executable
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -143,48 +144,68 @@ print("Welcome to the Number Plate Detection System.\n")
 
 array=[]
 
+# Directory of the script
 dir = os.path.dirname(__file__)
 
-for img in glob.glob("Dataset/1.jpeg") :
-    img=cv2.imread(img)
-    
-    img2 = cv2.resize(img, (600, 600))
-    cv2.imshow("Image of car ",img2)
-    cv2.waitKey(1000)
-    cv2.destroyAllWindows()
-    
-    
-    number_plate=number_plate_detection(img)
-    res2 = str("".join(re.split("[^a-zA-Z0-9]*", number_plate)))
-    res2=res2.upper()
-    print(res2)
+# List to store vehicle numbers
+array = []
 
-    array.append(res2)
+# Iterate over all images in the "Dataset" folder
+for img_name in os.listdir(os.path.join(dir, "Dataset")):
+    img_path = os.path.join(dir, "Dataset", img_name)
+    if os.path.isfile(img_path) and img_name.endswith(".jpeg"):
+        img = cv2.imread(img_path)
+        
+        # Perform number plate detection
+        number_plate = number_plate_detection(img)
+        
+        # Ensure number_plate_detection returns a string
+        if isinstance(number_plate, str):
+            res2 = str("".join(re.split("[^a-zA-Z0-9]*", number_plate)))
+            res2 = res2.upper()
+            print(res2)
+            array.append(res2)
+        else:
+            print("Error: number_plate_detection should return a string")
 
-#Sorting
-array=quickSort(array,0,len(array)-1)
-print ("\n\n")
+# Sorting
+array = quickSort(array, 0, len(array) - 1)
+print("\n\n")
 print("The Vehicle numbers registered are:-")
 for i in array:
     print(i)
-print ("\n\n")    
+print("\n\n")
 
-#Searching
+# Searching
 res2 = None  # Initialize res2 to None
-for img in glob.glob(dir+"/search/*.jpeg"):
-    img = cv2.imread(img)
+search_result = []
+for img_path in glob.glob(os.path.join(dir, "search", "*.jpeg")):
+    img = cv2.imread(img_path)
     
+    # Perform number plate detection
     number_plate = number_plate_detection(img)
-    res2 = str("".join(re.split("[^a-zA-Z0-9]*", number_plate)))
-
-if res2:
-    print("The car number to search is:- ", res2)
-    result = binarySearch(array, 0, len(array) - 1, res2)
-    if result != -1:
-        print("\n\nThe Vehicle is allowed to visit.")
+    
+    # Ensure number_plate_detection returns a string
+    if isinstance(number_plate, str):
+        res2 = str("".join(re.split("[^a-zA-Z0-9]*", number_plate)))
+        
+        if res2:
+            print("The car number to search is:- ", res2)
+            result = binarySearch(array, 0, len(array) - 1, res2)
+            if result != -1:
+                print("\n\nThe Vehicle is allowed to visit.")
+                search_result.append((res2, "Allowed"))
+            else:
+                print("\n\nThe Vehicle is not allowed to visit.")
+                search_result.append((res2, "Not Allowed"))
+        else:
+            print("No car number to search.")
     else:
-        print("\n\nThe Vehicle is not allowed to visit.")
-else:
-    print("No car number to search.")
+        print("Error: number_plate_detection should return a string")
 
-    			
+# Create a DataFrame from search results
+df = pd.DataFrame(search_result, columns=["Vehicle Number", "Visit Status"])
+
+# Write DataFrame to Excel file
+df.to_excel("visit_status.xlsx", index=False)
+print("Data stored in 'visit_status.xlsx' file.")
